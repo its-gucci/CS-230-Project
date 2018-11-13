@@ -1,9 +1,19 @@
 from darkflow.net.build import TFNet
 import cv2
 import os 
+import xml.etree.ElementTree as ET
 import json
+from sklearn.metrics import precision_recall_curve
+from sklearn.metrics import f1_score
+from sklearn.metrics import auc
+from sklearn.metrics import average_precision_score
+from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_auc_score
 
 def detrac_names_loader(path):
+	"""
+	Extracts all image names so we can call darkflow's built in prediction function
+	"""
 	image_names = []
 	for file in os.listdir(path):
 		if file.endswith(".jpg"):
@@ -35,11 +45,23 @@ def iou(box1, box2):
     
     return iou
 
-def xml_parser():
+def xml_parser(xml):
 	"""
-	Given darkflow xml annotations, return list of objects and their bounding boxes
+	Parses xml file to find the object labels and bounding boxes
 	"""
-	return
+    lst = []
+    tree = ET.parse(file)
+    root = tree.getroot()
+
+    for obj in root.iter('object'):
+        name = obj.find('name').text
+        xmin = obj.find('bndbox')[0].text
+        xmax = obj.find('bndbox')[1].text
+        ymin = obj.find('bndbox')[2].text
+        ymax = obj.find('bndbox')[3].text
+        lst.append([name,[xmin,xmax,ymin,ymax]])
+        
+    return lst
 
 def json_parser(json_object):
 	"""
@@ -49,8 +71,10 @@ def json_parser(json_object):
 	predictions = []
 	for i in range(len(loaded)):
 		prediction = loaded[i]
-		predict_label = prediction["label"]
-		predict_box = (prediction["topleft"]["x"], prediction["topleft"]["y"], prediction["bottomright"]["x"], prediction["bottomright"]["y"])
+		dic = {}
+		dic["predict_label"] = prediction["label"]
+		dic["confidence"] = prediction["confidence"]
+		dic["predict_box"] = (prediction["topleft"]["x"], prediction["topleft"]["y"], prediction["bottomright"]["x"], prediction["bottomright"]["y"])
 		predictions.append(predicted_label, predict_box)
 	return predictions
 
@@ -59,12 +83,18 @@ def main():
 
 	tfnet = TFNet(options)
 
+	# find all image names for our test set
 	images = detrac_loader(file_dir)
 
+	# extract all ground truth labels and bounding boxes using our xml extractor
+
+	# extract all model predictions using darkflow's builtin prediction function
+	predictions = []
 	for image_name in images:
 		imgcv = cv2.imread(image_name)
 		result = tfnet.return_predict(imgcv)
-		
+		prediction = json_parser(result)
+		predictions.append(prediction)
 
 if __name__ == "__main__": 
 	main()
