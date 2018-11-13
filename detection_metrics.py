@@ -4,20 +4,16 @@ import os
 import xml.etree.ElementTree as ET
 import json
 from sklearn.metrics import precision_recall_curve
-from sklearn.metrics import f1_score
-from sklearn.metrics import auc
 from sklearn.metrics import average_precision_score
-from sklearn.metrics import roc_curve
-from sklearn.metrics import roc_auc_score
 
-def detrac_names_loader(path):
+def detrac_names_loader(path, ext):
 	"""
 	Extracts all image names so we can call darkflow's built in prediction function
 	"""
 	image_names = []
 	for file in os.listdir(path):
-		if file.endswith(".jpg"):
-			image_names.append(path + file)
+		if file.endswith(ext):
+			image_names.append(file[:len(file) - len(ext)])
 	return image_names
 
 def iou(box1, box2):
@@ -45,7 +41,7 @@ def iou(box1, box2):
     
     return iou
 
-def xml_parser(xml):
+def xml_parser(file):
 	"""
 	Parses xml file to find the object labels and bounding boxes
 	"""
@@ -59,7 +55,7 @@ def xml_parser(xml):
         xmax = obj.find('bndbox')[1].text
         ymin = obj.find('bndbox')[2].text
         ymax = obj.find('bndbox')[3].text
-        lst.append([name,[xmin,xmax,ymin,ymax]])
+        lst.append([name,(xmin,xmax,ymin,ymax)])
         
     return lst
 
@@ -83,18 +79,22 @@ def main():
 
 	tfnet = TFNet(options)
 
-	# find all image names for our test set
-	images = detrac_loader(file_dir)
+	#directories for annotations, and test images
+	xmldir = "Annotations_test/"
+	imgdir = "Images_test/"
 
-	# extract all ground truth labels and bounding boxes using our xml extractor
+	# find all image names
+	confidence = []
+	labels = []
+	xml_names = detrac_names_loader(xmldir, ".xml")
+	for name in xml_names: 
+		# get ground truth/annotations for a given image
+		gtruth = xml_parser(xmldr + name + ".xml")
 
-	# extract all model predictions using darkflow's builtin prediction function
-	predictions = []
-	for image_name in images:
-		imgcv = cv2.imread(image_name)
+		# get model predictions for corresponding image
+		imgcv = cv2.imread(imgdir + name + ".jpg")
 		result = tfnet.return_predict(imgcv)
 		prediction = json_parser(result)
-		predictions.append(prediction)
 
 if __name__ == "__main__": 
 	main()
